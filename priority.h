@@ -1,12 +1,20 @@
-#include <stdbool.h>
-#include "huffman.h"
+#ifndef PRIORITY_H
+#define PRIORITY_H
+typedef struct PQueue_
+{
+    int start;
+    int end;
+    int size;
+    Node **queue;
+} PQueue;
 
-Node* create_heap(int size, int *heap_end);
-bool insert_heap(Node *heap, int *heap_end, int letter, int freq);
-void heapify(Node *heap, int *heap_end);
-int get_parent(int i);
-int* get_children(int i);
-void swap(Node *heap, int a, int b);
-Node peek(Node *heap);
-Node get_min(Node *heap, int *heap_end);
-bool is_leaf(int pos, int end);
+PQueue *initialize_pqueue(int size);
+bool is_full(PQueue *q);
+bool is_empty(PQueue *q);
+void heapify_pqueue(PQueue *q);
+void swap(Node **queue, int a, int b);
+int enqueue_pqueue(PQueue *q, Node *node);
+Node *dequeue_pqueue(PQueue *q);
+void print_pqueue(PQueue *q);
+void test_pqueue();
+#endif
