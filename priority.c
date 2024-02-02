@@ -5,13 +5,6 @@
 #include "priority.h"
 #include "huffman.h"
 
-#define PRINT_NODE(d) printf("Node --> freq -> %d, ch -> %c\n\n", d->freq, d->ch);
-
-int main(void) {
-    test_pqueue();
-    return 0;
-}
-
 PQueue *initialize_pqueue(int size) {
     Node **q = (Node **) malloc(size * sizeof(Node *));
     PQueue *queue = malloc(sizeof(PQueue));
@@ -66,14 +59,12 @@ Node *dequeue_pqueue(PQueue *q) {
             int child_1 = 2 * i + 1;
             int child_2 = 2 * i + 2;
 
-            if (child_1 <= total_el && q->queue[i]->freq < q->queue[child_1]->freq && q->queue[child_1]->freq > q->queue[child_2]->freq) {
+            if (child_1 <= total_el && q->queue[i]->freq > q->queue[child_1]->freq && q->queue[child_1]->freq < q->queue[child_2]->freq) {
                 swap(q->queue, i, child_1);
                 i = child_1;
-            } else if (child_2 <= total_el && q->queue[i]->freq < q->queue[child_2]->freq) {
+            } else if (child_2 <= total_el && q->queue[i]->freq > q->queue[child_2]->freq) {
                 swap(q->queue, i, child_2);
                 i = child_2;
-            } else {
-                break;
             }
         }
 
@@ -90,15 +81,17 @@ void heapify_pqueue(PQueue *q) {
 
         for (int i=total_el; i > 0; i--){
             int parent = (i - 1) / 2;
-            if (q->queue[i]->freq > q->queue[parent]->freq) {
+            if (q->queue[i]->freq < q->queue[parent]->freq) {
                 swap(q->queue, i, parent);
                 i = (i - 1) / 2;
-            } else {
-                break;
             }
         }
     }
 
+}
+
+int get_size_pqueue(PQueue *q) {
+    return q->end + 1;
 }
 
 void swap(Node **queue, int a, int b) {
