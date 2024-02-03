@@ -107,10 +107,11 @@ int main() {
     fclose(new_fp);
 
     FILE *tmp = fopen("compressed.bj", "rb");
-    while ((c = fgetc(tmp)) != EOF) {
-        for (int i=0; i<7; i++) {
-            // unsigned char tmp = c;
-            printf("%d", (c & (1 << (7 - i))) >> (7 - i));
+    unsigned char byte;
+    int flag;
+    while ((flag = fread(&byte, sizeof(unsigned char), 1, tmp)) > 0) {
+        for (int i=0; i<8; i++) {
+            printf("%d", (byte & (1 << (7 - i))) >> (7 - i));
         }
     }
     printf("\n");
