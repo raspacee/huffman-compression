@@ -1,17 +1,11 @@
 #ifndef PRIORITY_H
 #define PRIORITY_H
+
 #include <stdbool.h>
 #include "huffman.h"
+#include "common.h"
 
 #define PRINT_NODE(d) printf("Node --> freq -> %d, ch -> %c\n", d->freq, d->ch);
-
-typedef struct PQueue_
-{
-    int start;
-    int end;
-    int size;
-    Node **queue;
-} PQueue;
 
 PQueue *initialize_pqueue(int size);
 bool is_full(PQueue *q);

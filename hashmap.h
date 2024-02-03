@@ -3,11 +3,11 @@
 
 typedef enum DataType {
     FREQ_TYPE,
-    CODE_TYPE
+    STR_TYPE
 } DataType;
 
 typedef union BucketData {
-    char *code;
+    char *string;
     int freq;
 } BucketData;
 
