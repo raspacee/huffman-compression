@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdint.h>
 #include "huffman.h"
 #include "priority.h"
 #include "hashmap.h"
@@ -86,13 +87,13 @@ Node *create_htree(PQueue *q) {
 
 int decompress_file(char *filename) {
     FILE *tmp = fopen(filename, "rb");
-    unsigned char byte;
+    uint16_t two_byte;
     int flag;
-    while ((flag = fread(&byte, sizeof(unsigned char), 1, tmp)) > 0)
+    while ((flag = fread(&two_byte, sizeof(uint16_t), 1, tmp)) > 0)
     {
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 16; i++)
         {
-            printf("%d", (byte & (1 << (7 - i))) >> (7 - i));
+            printf("%d", (two_byte & (1 << (15 - i))) >> (15 - i));
         }
     }
     printf("\n");
@@ -102,7 +103,7 @@ int decompress_file(char *filename) {
 /* Generate a compressed file. Returns non zero if failed. */
 int compress_file(FILE *orig_file, HashMap *code_map) {
     FILE *new_fp = fopen("compressed.bj", "wb");
-    char buf[8]; /* Buffer to store 1 byte */
+    char buf[16]; /* Buffer to store 2 bytes */
     int buf_index = -1;
     char c;
     /* Read the file from beginning */
@@ -125,17 +126,12 @@ int compress_file(FILE *orig_file, HashMap *code_map) {
 
         for (int i=0; i<strlen(code->string); i++) {
             /* Buffer is full so write the byte to a file */
-            if (buf_index == 7) {
-                unsigned char byte = 0;
-                byte |= buf[0] == '0' ? 0 << 7 : 1 << 7; 
-                byte |= buf[1] == '0' ? 0 << 6 : 1 << 6; 
-                byte |= buf[2] == '0' ? 0 << 5 : 1 << 5; 
-                byte |= buf[3] == '0' ? 0 << 4 : 1 << 4; 
-                byte |= buf[4] == '0' ? 0 << 3 : 1 << 3; 
-                byte |= buf[5] == '0' ? 0 << 2 : 1 << 2; 
-                byte |= buf[6] == '0' ? 0 << 1 : 1 << 1; 
-                byte |= buf[7] == '0' ? 0 : 1 ; 
-                fwrite(&byte, sizeof(unsigned char), 1, new_fp);
+            if (buf_index == 15) {
+                uint16_t two_byte = 0;
+                for (int i=0; i <= 15; i++) {
+                    two_byte |= buf[i] == '0' ? 0 << (15 - i) : 1 << (15 - i);
+                }
+                fwrite(&two_byte, sizeof(uint16_t), 1, new_fp);
 
                 buf_index = -1; /* Reset the buffer */
             } 
@@ -145,11 +141,11 @@ int compress_file(FILE *orig_file, HashMap *code_map) {
     }
     /* If any bits in the buffer is left, write it to file */
     if (buf_index >= 0) {
-        unsigned char byte = 0;
-        for (int i=0; i <= buf_index; i++) {
-            byte |= buf[i] == '0' ? 0 << (7 - i) : 1 << (7 - i);
+        uint16_t two_byte = 0;
+        for (int i=0; i <= 15; i++) {
+            two_byte |= buf[i] == '0' ? 0 << (15 - i) : 1 << (15 - i);
         }
-        fwrite(&byte, sizeof(unsigned char), 1, new_fp);
+        fwrite(&two_byte, sizeof(uint16_t), 1, new_fp);
     }
     fclose(new_fp);
 
@@ -175,7 +171,7 @@ void store_codes(HashMap *code_map, HashMap *alph_map, Node *root, char arr[], i
         strncpy(code, arr, sizeof(char) * top);
         code_data->string = code;
 
-        //hacky
+        // hacky 
         char *key = malloc(sizeof(char) * 2);
         key[0] = root->ch;
         key[1] = '\0';
@@ -184,7 +180,6 @@ void store_codes(HashMap *code_map, HashMap *alph_map, Node *root, char arr[], i
 
         BucketData *alph_data = malloc(sizeof(BucketData));
         alph_data->string = key;
-        printf("code %s, letter %s\n", code, key);
         insert_hashmap(alph_map, code, alph_data);
     } 
 }
