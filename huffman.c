@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdint.h>
 #include "huffman.h"
 #include "priority.h"
 #include "hashmap.h"
@@ -10,6 +11,7 @@
 
 int main() {
     int frequency[ALPHABETS_LEN] = {0};
+    uint64_t total_char = 0; /* Total characters in original file */
     char c;
     FILE *fp = fopen("text", "r");
     if (fp == NULL) {
@@ -21,6 +23,7 @@ int main() {
         c = tolower(c);
         short int index = c - 97;
         frequency[index]++;
+        total_char++;
     }
 
     PQueue *q = initialize_pqueue(30);
@@ -52,9 +55,9 @@ int main() {
     char arr2[20];
     top = 0;
     store_codes(code_map, alph_map, tree_root, arr2, top);
-    printf("Original alpha: %d\n", alph_map->filled);
+    printf("Original alphas: %d\n", alph_map->filled);
 
-    if (compress_file(fp, code_map, alph_map) != 0) {
+    if (compress_file(fp, code_map, alph_map, total_char) != 0) {
         printf("Some error occured while compressing the file\n");
         exit(-1);
     }
@@ -87,8 +90,9 @@ Node *create_htree(PQueue *q) {
 }
 
 int decompress_file(char *filename) {
-    FILE *tmp = fopen(filename, "rb");
-    if (tmp == NULL) {
+    FILE *fp = fopen(filename, "rb");
+    FILE *new_fp = fopen("decompressed.txt", "w");
+    if (fp == NULL || new_fp == NULL) {
         printf("decompress_file: error opening file\n");
         exit(-1);
     }
@@ -96,31 +100,65 @@ int decompress_file(char *filename) {
     int flag;
 
     /* Read the meta data */
-    int meta_size = fgetc(tmp);
+    uint64_t total_char;
+    fread(&total_char, sizeof(uint64_t), 1, fp);
+    printf("Total char: %d\n", total_char);
+    int meta_size = fgetc(fp);
     MetaData meta[meta_size];
-    fread(meta, sizeof(MetaData), meta_size, tmp);
+    fread(meta, sizeof(MetaData), meta_size, fp);
 
     /* Create a hashmap using the meta data, this hashmap will be used for decompressing */
     HashMap *meta_map = initialize_hashmap(meta_size, STR_TYPE);
+
     for (int i=0; i<meta_size; i++) {
-        insert_hashmap(meta_map, meta[i].code, meta[i].alphabet);
+        char *letter = malloc(sizeof(char) + 1); // hacky
+        letter[0] = meta[i].alphabet;
+        letter[1] = '\0';
+        BucketData *data = malloc(sizeof(BucketData));
+        data->string = letter;
+
+        insert_hashmap(meta_map, meta[i].code, data);
     }
 
-    while ((flag = fread(&two_byte, sizeof(uint16_t), 1, tmp)) > 0)
+    char buf[17]; /* Buffer to store the incoming code from the file, extra space for \0 */
+    int buf_index = 0;
+
+    while ((flag = fread(&two_byte, sizeof(uint16_t), 1, fp)) > 0)
     {
         for (int i = 0; i < 16; i++)
         {
-            printf("%d", (two_byte & (1 << (15 - i))) >> (15 - i));
+            uint8_t bit = (two_byte >> (15 - i)) & 1;
+            if (bit == 0) buf[buf_index++] = '0';
+            else buf[buf_index++] = '1';
+            printf("%d", bit);
+
+            char *query = malloc(sizeof(char) * buf_index);
+            buf[buf_index] = '\0';
+            // printf("%s ", buf);
+            strcpy(query, buf);
+            buf[buf_index] = " ";
+            BucketData *letter = get_hashmap(meta_map, query);
+            if (letter != NULL) {
+                // printf("%s", letter->string);
+                fputc(letter->string[0], new_fp);
+                buf_index = 0;
+            }
+
+            if (buf_index == 16) buf_index = 0;
+            free(query);
         }
     }
     printf("\n");
+    free(fp);
+    free(new_fp);
     return 0;
 }
 
 /* Generate a compressed file. Returns non zero if failed. */
-int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map) {
+int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map, uint64_t total_char) {
     FILE *new_fp = fopen("compressed.bj", "wb");
 
+    fwrite(&total_char, sizeof(uint64_t), 1, new_fp);
     /* Write the codes->alphabet hashmap metadata first */
     MetaData meta[alph_map->filled];
     int counter = 0;
@@ -176,7 +214,7 @@ int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map) {
     /* If any bits in the buffer is left, write it to file */
     if (buf_index >= 0) {
         uint16_t two_byte = 0;
-        for (int i=0; i <= 15; i++) {
+        for (int i=0; i <= buf_index; i++) {
             two_byte |= buf[i] == '0' ? 0 << (15 - i) : 1 << (15 - i);
         }
         fwrite(&two_byte, sizeof(uint16_t), 1, new_fp);

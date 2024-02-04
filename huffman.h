@@ -1,6 +1,7 @@
 #ifndef HUFFMAN_H
 #define HUFFMAN_H
 
+#include <stdint.h>
 #include "priority.h"
 #include "hashmap.h"
 #include "common.h"
@@ -16,7 +17,7 @@ typedef struct MetaData_ {
 
 void print_codes(Node *root, char arr[], int top);
 void store_codes(HashMap *code_map, HashMap *alph_map, Node *root, char arr[], int top);
-int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map);
+int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map, uint64_t total_char);
 int decompress_file(char *filename);
 Node *create_htree(PQueue *q);
 
