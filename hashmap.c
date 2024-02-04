@@ -8,6 +8,7 @@ HashMap *initialize_hashmap(int size, DataType type) {
     map->type = type;
     map->buckets = malloc(sizeof(BucketItem) * size);
     map->size = size;
+    map->filled = 0;
 
     for (int i=0; i<size; i++) {
         map->buckets[i] = NULL;

@@ -55,16 +55,22 @@ Node *dequeue_pqueue(PQueue *q) {
         int total_el;
         total_el = q->end;
 
-        for (int i=0; i < total_el; i++) {
+        for (int i=0; i < total_el;)  {
             int child_1 = 2 * i + 1;
             int child_2 = 2 * i + 2;
 
-            if (child_1 <= total_el && q->queue[i]->freq > q->queue[child_1]->freq && q->queue[child_1]->freq < q->queue[child_2]->freq) {
-                swap(q->queue, i, child_1);
-                i = child_1;
-            } else if (child_2 <= total_el && q->queue[i]->freq > q->queue[child_2]->freq) {
-                swap(q->queue, i, child_2);
-                i = child_2;
+            int min = i;
+            if (child_1 > total_el || child_1 < 0) child_1 = -1;
+            if (child_2 > total_el || child_2 < 0) child_2 = -1;
+
+            if (child_1 != -1 && q->queue[child_1]->freq < q->queue[i]->freq) min = child_1;
+            if (child_2 != -1 && q->queue[child_2]->freq < q->queue[min]->freq) min = child_2;
+
+            if (min != i) {
+                swap(q->queue, i, min);
+                i = min;
+            } else {
+                break;
             }
         }
 
@@ -79,11 +85,13 @@ void heapify_pqueue(PQueue *q) {
     } else {
         int total_el = q->end;
 
-        for (int i=total_el; i > 0; i--){
+        for (int i=total_el; i > 0;){
             int parent = (i - 1) / 2;
             if (q->queue[i]->freq < q->queue[parent]->freq) {
                 swap(q->queue, i, parent);
                 i = (i - 1) / 2;
+            } else {
+                break;
             }
         }
     }

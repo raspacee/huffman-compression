@@ -52,8 +52,9 @@ int main() {
     char arr2[20];
     top = 0;
     store_codes(code_map, alph_map, tree_root, arr2, top);
+    printf("Original alpha: %d\n", alph_map->filled);
 
-    if (compress_file(fp, code_map) != 0) {
+    if (compress_file(fp, code_map, alph_map) != 0) {
         printf("Some error occured while compressing the file\n");
         exit(-1);
     }
@@ -87,8 +88,24 @@ Node *create_htree(PQueue *q) {
 
 int decompress_file(char *filename) {
     FILE *tmp = fopen(filename, "rb");
+    if (tmp == NULL) {
+        printf("decompress_file: error opening file\n");
+        exit(-1);
+    }
     uint16_t two_byte;
     int flag;
+
+    /* Read the meta data */
+    int meta_size = fgetc(tmp);
+    MetaData meta[meta_size];
+    fread(meta, sizeof(MetaData), meta_size, tmp);
+
+    /* Create a hashmap using the meta data, this hashmap will be used for decompressing */
+    HashMap *meta_map = initialize_hashmap(meta_size, STR_TYPE);
+    for (int i=0; i<meta_size; i++) {
+        insert_hashmap(meta_map, meta[i].code, meta[i].alphabet);
+    }
+
     while ((flag = fread(&two_byte, sizeof(uint16_t), 1, tmp)) > 0)
     {
         for (int i = 0; i < 16; i++)
@@ -101,8 +118,25 @@ int decompress_file(char *filename) {
 }
 
 /* Generate a compressed file. Returns non zero if failed. */
-int compress_file(FILE *orig_file, HashMap *code_map) {
+int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map) {
     FILE *new_fp = fopen("compressed.bj", "wb");
+
+    /* Write the codes->alphabet hashmap metadata first */
+    MetaData meta[alph_map->filled];
+    int counter = 0;
+    for (int i=0; i<alph_map->size; i++) {
+        if (alph_map->buckets[i] != NULL) {
+            strcpy(meta[counter].code, alph_map->buckets[i]->key);
+            meta[counter].alphabet = alph_map->buckets[i]->data->string[0];
+            counter++;
+
+            if (counter == alph_map->filled) break; /* Don't remove dangerous things happen */
+        }
+    }
+    int meta_size = alph_map->filled; /* Starting from index 1 */
+    fputc(meta_size, new_fp); /* Write the metadata array size */
+    fwrite(meta, sizeof(MetaData), meta_size, new_fp);
+
     char buf[16]; /* Buffer to store 2 bytes */
     int buf_index = -1;
     char c;
