@@ -47,12 +47,14 @@ int insert_hashmap(HashMap *map, char *key, BucketData *data) {
 /* Returns NULL if not found */
 BucketData *get_hashmap(HashMap *map, char *key) {
     int index = hash_code(map, key);
+    int orig_index = index;
 
     while (map->buckets[index] != NULL) {
         if (strcmp(map->buckets[index]->key, key) == 0)
             return map->buckets[index]->data;
         
         index = (index + 1) % map->size;
+        if (orig_index == index) break;
     }
 
     return NULL;
