@@ -31,9 +31,12 @@ int main(int argc, char *argv[]) {
         }
         uint64_t total_char = 0; /* Total characters in original file */
         char c;
-        HashMap *freq_map = initialize_hashmap(200, FREQ_TYPE);
+
+        /* Hashmap to store frequency of characters*/
+        HashMap *freq_map = initialize_hashmap(200, FREQ_TYPE);         
         BucketData *data = NULL;
 
+        /* Read each character one by one from file and update frequency of each character */
         while ((c = fgetc(fp)) != EOF) {
             char *ch = malloc(sizeof(char) * 2);
             ch[0] = c;
@@ -48,6 +51,8 @@ int main(int argc, char *argv[]) {
             total_char++;
         }
 
+        /* Create min priority queue */
+        /* This will be used when creating the huffman tree */
         PQueue *q = initialize_pqueue(200);
 
         for (int i=0; i<freq_map->size; i++) {
