@@ -75,29 +75,10 @@ int hash_code(HashMap *map, char *key) {
 //     BucketData c = { .freq = 34 };
 //     insert_hashmap(map, "/", &c);
 
-//     char *key = "z";
-//     BucketData *result;
-//     if ((result = get_hashmap(map, key)) != NULL) {
-//         printf("%s -> %d\n", key, result->freq);
-//     } else {
-//         printf("Not found\n");
-//     }
+//     BucketData *tmp = malloc(sizeof(BucketData));
+//     tmp->freq = 101;
+//     tmp->freq = 90;
+//     printf("%d\n", get_hashmap(map, "z")->freq);
 
-//     HashMap *map2 = initialize_hashmap(100, CODE_TYPE);
-
-//     BucketData w = { .code = "00" };
-//     insert_hashmap(map2, "a", &w);
-//     BucketData x = { .code = "101" };
-//     insert_hashmap(map2, "z", &x);
-//     BucketData y = { .code = "10001" };
-//     insert_hashmap(map2, "/", &y);
-
-//     char *key2 = "e";
-//     BucketData *result2;
-//     if ((result2 = get_hashmap(map2, key2)) != NULL) {
-//         printf("%s -> %s\n", key2, result2->code);
-//     } else {
-//         printf("Not found\n");
-//     }
 //     return 0;
 // }

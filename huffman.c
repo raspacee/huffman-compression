@@ -9,67 +9,83 @@
 #include "hashmap.h"
 #include "common.h"
 
-int main() {
-    int frequency[ALPHABETS_LEN] = {0};
-    uint64_t total_char = 0; /* Total characters in original file */
-    char c;
-    FILE *fp = fopen("text", "r");
-    if (fp == NULL) {
-        printf("ERROR: Cannot read file\n");
+int main(int argc, char *argv[]) {
+    if (argc != 3 || 
+        (strcmp(argv[1], "-decomp") != 0 && strcmp(argv[1], "-comp") != 0)
+    ) {
+        printf("program usage not correct\nuse like this: ./huffman -[decomp or comp] [filename]\n");
         exit(-1);
     }
 
-    while ((c = fgetc(fp)) != EOF) {
-        c = tolower(c);
-        short int index = c - 97;
-        frequency[index]++;
-        total_char++;
-    }
-
-    PQueue *q = initialize_pqueue(30);
-
-    for (int i=0; i<ALPHABETS_LEN; i++) {
-        if (frequency[i] > 0) {
-            Node *tmp = malloc(sizeof(Node));
-            tmp->ch = i + 97;
-            tmp->freq = frequency[i];
-            tmp->left = NULL;
-            tmp->right= NULL;
-            enqueue_pqueue(q, tmp);
+    if (strcmp(argv[1], "-decomp") == 0) {
+        if (decompress_file(argv[2]) != 0) {
+            printf("Error occured while decompressing file\n");
+            exit(-1);
         }
+        printf("Sucessfully decompressed the file, decompressed.txt \n");
+    } else {
+        FILE *fp = fopen(argv[2], "r");
+        if (fp == NULL) {
+            printf("ERROR: Cannot read file\n");
+            exit(-1);
+        }
+        uint64_t total_char = 0; /* Total characters in original file */
+        char c;
+        HashMap *freq_map = initialize_hashmap(200, FREQ_TYPE);
+        BucketData *data = NULL;
+
+        while ((c = fgetc(fp)) != EOF) {
+            char *ch = malloc(sizeof(char) * 2);
+            ch[0] = c;
+            ch[1] = '\0';
+            if ((data = get_hashmap(freq_map, ch)) != NULL) {
+                data->freq = data->freq + 1;
+            } else {
+                BucketData *f = malloc(sizeof(BucketData));
+                f->freq = 1;
+                insert_hashmap(freq_map, ch, f);
+            }
+            total_char++;
+        }
+
+        PQueue *q = initialize_pqueue(200);
+
+        for (int i=0; i<freq_map->size; i++) {
+            if (freq_map->buckets[i] != NULL) {
+                Node *tmp = malloc(sizeof(Node));
+                tmp->ch = freq_map->buckets[i]->key[0];
+                tmp->freq = freq_map->buckets[i]->data->freq;
+                tmp->left = NULL;
+                tmp->right= NULL;
+                enqueue_pqueue(q, tmp);
+            }
+        }
+
+        Node *tree_root = create_htree(q);
+
+        /* Traverse the tree and store the codes in a hashmap */
+
+        HashMap *code_map = initialize_hashmap(100, STR_TYPE); /* Stores the letter -> codes */
+
+        /*  Stores the codes -> letter, this map will be used to decompress a file. */
+        HashMap *alph_map = initialize_hashmap(100, STR_TYPE);     
+
+        char arr2[20];
+        int top = 0;
+        store_codes(code_map, alph_map, tree_root, arr2, top);
+
+        if (compress_file(fp, code_map, alph_map, total_char) != 0) {
+            printf("Some error occured while compressing the file\n");
+            exit(-1);
+        }
+        printf("Sucessfully compressed the file, check decompressed.bj\n");
+
+        free(code_map);
+        free(freq_map);
+        free(q);
+        fclose(fp);
     }
 
-    Node *tree_root = create_htree(q);
-
-    char arr[20];
-    int top = 0;
-    print_codes(tree_root, arr, top);
-
-    /* Traverse the tree and store the codes in a hashmap */
-
-    HashMap *code_map = initialize_hashmap(100, STR_TYPE); /* Stores the letter -> codes */
-
-    /*  Stores the codes -> letter, this map will be used to decompress a file. */
-    HashMap *alph_map = initialize_hashmap(100, STR_TYPE);     
-
-    char arr2[20];
-    top = 0;
-    store_codes(code_map, alph_map, tree_root, arr2, top);
-    printf("Original alphas: %d\n", alph_map->filled);
-
-    if (compress_file(fp, code_map, alph_map, total_char) != 0) {
-        printf("Some error occured while compressing the file\n");
-        exit(-1);
-    }
-
-    if (decompress_file("compressed.bj") != 0) {
-        printf("Error occured while decompressing file\n");
-        exit(-1);
-    }
-
-    free(code_map);
-    free(q);
-    fclose(fp);
     return 0;
 }
 
@@ -102,7 +118,6 @@ int decompress_file(char *filename) {
     /* Read the meta data */
     uint64_t total_char;
     fread(&total_char, sizeof(uint64_t), 1, fp);
-    printf("Total char: %d\n", total_char);
     int meta_size = fgetc(fp);
     MetaData meta[meta_size];
     fread(meta, sizeof(MetaData), meta_size, fp);
@@ -110,6 +125,7 @@ int decompress_file(char *filename) {
     /* Create a hashmap using the meta data, this hashmap will be used for decompressing */
     HashMap *meta_map = initialize_hashmap(meta_size, STR_TYPE);
 
+    uint64_t total_char_read = 0;
     for (int i=0; i<meta_size; i++) {
         char *letter = malloc(sizeof(char) + 1); // hacky
         letter[0] = meta[i].alphabet;
@@ -130,27 +146,30 @@ int decompress_file(char *filename) {
             uint8_t bit = (two_byte >> (15 - i)) & 1;
             if (bit == 0) buf[buf_index++] = '0';
             else buf[buf_index++] = '1';
-            printf("%d", bit);
 
             char *query = malloc(sizeof(char) * buf_index);
+            if (query == NULL) {
+                printf("decompress_file: failed to malloc\n");
+                exit(-1);
+            }
             buf[buf_index] = '\0';
-            // printf("%s ", buf);
             strcpy(query, buf);
-            buf[buf_index] = " ";
+            buf[buf_index] = ' ';
             BucketData *letter = get_hashmap(meta_map, query);
             if (letter != NULL) {
-                // printf("%s", letter->string);
                 fputc(letter->string[0], new_fp);
                 buf_index = 0;
+                total_char_read++;
             }
 
-            if (buf_index == 16) buf_index = 0;
             free(query);
-        }
+            if (buf_index == 16) buf_index = 0;
+            /* Don't read waste trailing bits if all characters are decompressed*/
+            if (total_char_read == total_char) break;         }
     }
     printf("\n");
-    free(fp);
-    free(new_fp);
+    fclose(fp);
+    fclose(new_fp);
     return 0;
 }
 
@@ -181,10 +200,6 @@ int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map, uint64_
     /* Read the file from beginning */
     fseek(orig_file, 0, SEEK_SET);
     while ((c = fgetc(orig_file)) != EOF) {
-        if (c == ' ') {
-            continue;
-        }
-
         // Hacky way to convert a char to char*
         char *query = malloc(sizeof(char) * 2);
         query[0] = c;
@@ -196,7 +211,7 @@ int compress_file(FILE *orig_file, HashMap *code_map, HashMap *alph_map, uint64_
             return -1;
         }
 
-        for (int i=0; i<strlen(code->string); i++) {
+        for (size_t i=0; i<strlen(code->string); i++) {
             /* Buffer is full so write the byte to a file */
             if (buf_index == 15) {
                 uint16_t two_byte = 0;
