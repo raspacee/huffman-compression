@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
             printf("Some error occured while compressing the file\n");
             exit(-1);
         }
-        printf("Sucessfully compressed the file, check decompressed.bj\n");
+        printf("Sucessfully compressed the file, check compressed.bj\n");
 
         free(code_map);
         free(freq_map);
